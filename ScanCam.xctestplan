@@ -1,0 +1,33 @@
+{
+  "configurations" : [
+    {
+      "id" : "41EDB9CE-5F41-4CEF-9ACE-20017AFD9DCD",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:ScanCam.xcodeproj",
+      "identifier" : "845E73CD2FAB09AB002D6920",
+      "name" : "ScanCam"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "skippedTests" : [
+        "ScanCamTests\/testExample()"
+      ],
+      "target" : {
+        "containerPath" : "container:ScanCam.xcodeproj",
+        "identifier" : "84D18A1B2FBED771003F4094",
+        "name" : "ScanCamTests"
+      }
+    }
+  ],
+  "version" : 1
+}
