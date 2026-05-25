@@ -28,6 +28,6 @@ jobs:
       - name: Run Build
         run: |
           xcodebuild build \
-          -project YourApp.xcodeproj \
-          -scheme YourApp \
+          -project ScanCam.xcodeproj \
+          -scheme ScanCam \
           -destination 'platform=iOS Simulator,name=iPhone 16'
