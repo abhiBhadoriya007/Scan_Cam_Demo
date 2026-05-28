@@ -14,7 +14,7 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: macos-latest
+    runs-on: macos-15
 
     steps:
       - name: Checkout Code
@@ -23,11 +23,22 @@ jobs:
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '26.3'
+          xcode-version: '16.3'
 
-      - name: Run Build
+      - name: Show Xcode Version
+        run: xcodebuild -version
+
+      - name: Show Available Simulators
+        run: xcrun simctl list devices
+
+      - name: Boot Simulator
+        run: |
+          xcrun simctl boot "iPhone 15" || true
+
+      - name: Run Build & Tests
         run: |
           xcodebuild test \
           -project ScanCam.xcodeproj \
           -scheme ScanCam \
-          -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
+          -destination 'platform=iOS Simulator,name=iPhone 15' \
+          -sdk iphonesimulator
