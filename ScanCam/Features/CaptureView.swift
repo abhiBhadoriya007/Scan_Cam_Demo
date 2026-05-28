@@ -12,128 +12,198 @@ import AVFoundation
 struct CaptureView: View {
 
     @State private var selectedItem: PhotosPickerItem?
+    @State private var isShowingToast: Bool = false
+    @State private var toastMessage: String = "Copied"
 
     @State private var showCameraPicker = false
     @State private var selectionType: UIImagePickerController.SourceType = .camera
+    // Stores the current timer work item
+    @State private var toastWorkItem: DispatchWorkItem?
 
     @StateObject var viewModel = CaptureViewModel()
 
     var body: some View {
-
-        VStack(spacing: 10) {
+        
+        ZStack() {
             
-            if let image = viewModel.selectedImage {
+            VStack(spacing: 10) {
                 
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
+                if let image = viewModel.selectedImage {
+                    
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.red, lineWidth: 1.5)
+                        )
+                        .padding()
+                    
+                    
+                    ScrollView {
+                        
+                        Text(
+                            viewModel.recognizedText.isEmpty
+                            ? "Scanned text will appear here"
+                            : viewModel.recognizedText
+                        )
+                        .foregroundColor(Color.black)
+                        .padding()
+                    }
                     .frame(maxWidth: .infinity)
-                    .frame(height: 250)
-                    .padding()
-                    .cornerRadius(10)
-                
-                ScrollView {
+                    .background(Color.white)
+                    .overlay(content: {
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.red, lineWidth: 1.5)
+                    })
+                    .padding(15)
                     
-                    Text(
-                        viewModel.recognizedText.isEmpty
-                        ? "Scanned text will appear here"
-                        : viewModel.recognizedText
-                    )
-                    .foregroundColor(Color.black)
-                    .padding()
-                }
-                .frame(maxWidth: .infinity)
-                .frame(maxHeight: 200)
-                .background(Color.white)
-                .overlay(content: {
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.red, lineWidth: 1.5)
-                })
-                .padding(15)
-                
-                // CLEAR BUTTON
-                Button {
                     
-                    viewModel.selectedImage = nil
-                    viewModel.recognizedText = ""
-                    
-                } label: {
-                    
-                    Text("Clear Image")
-                        .padding(10)
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                }
-                .background(Color.green)
-                .cornerRadius(8)
-                .frame(height: 60)
-                .padding(.horizontal, 35)
-                
-                
-            } else {
-                
-                // CAMERA BUTTON
-                Button {
-                    
-                    AVCaptureDevice.requestAccess(for: .video) { granted in
+                    HStack() {
                         
-                        print("Granted: \(granted)")
-                        
-                        DispatchQueue.main.async {
+                        // CLEAR BUTTON
+                        Button {
+                            UIPasteboard.general.string = viewModel.recognizedText
+                            triggerToast()
                             
-                            if granted {
-                                
-                                selectionType = .camera
-                                showCameraPicker = true
-                            }
+                        } label: {
+                            
+                            Text("Copy")
+                                .padding(10)
+                                .font(.title3)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .background(Color.green)
+                        .cornerRadius(8)
+                        .frame(height: 60)
+                        .padding(.horizontal, 10)
+                        
+                        
+                        // CLEAR BUTTON
+                        Button {
+                            
+                            viewModel.selectedImage = nil
+                            viewModel.recognizedText = ""
+                            
+                        } label: {
+                            
+                            Text("Clear Image")
+                                .padding(10)
+                                .font(.title3)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .background(Color.green)
+                        .cornerRadius(8)
+                        .frame(height: 60)
+                        .padding(.horizontal, 10)
+                        
+                    }.padding(.horizontal,10)
+                    
+                    
+                    
+                    VStack {
+                        Spacer()
+                        
+                        if isShowingToast {
+                            Text(toastMessage)
+                                .font(.footnote)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 10)
+                                .background(Color.black.opacity(0.75))
+                                .foregroundColor(.white)
+                                .cornerRadius(20)
+                                .padding(.bottom, 50)
+                                .transition(.opacity.combined(with: .move(edge: .bottom)))
                         }
                     }
+
+                } else {
                     
-                } label: {
+                    // CAMERA BUTTON
+                    Button {
+                        
+                        AVCaptureDevice.requestAccess(for: .video) { granted in
+                            
+                            print("Granted: \(granted)")
+                            
+                            DispatchQueue.main.async {
+                                
+                                if granted {
+                                    
+                                    selectionType = .camera
+                                    showCameraPicker = true
+                                }
+                            }
+                        }
+                        
+                    } label: {
+                        
+                        captureImage
+                    }
+                    .padding(15)
                     
-                    captureImage
+                    // PHOTOS PICKER
+                    PhotosPicker(
+                        selection: $selectedItem,
+                        matching: .images
+                    ) {
+                        
+                        photoLibrary
+                    }
+                    .padding(15)
                 }
-                .padding(15)
-                
-                // PHOTOS PICKER
-                PhotosPicker(
-                    selection: $selectedItem,
-                    matching: .images
-                ) {
-                    
-                    photoLibrary
+            }
+            
+            // CAMERA SHEET
+            .sheet(isPresented: $showCameraPicker) {
+                ImagePicker(
+                    sourceType: selectionType,
+                    selectedImage: $viewModel.selectedImage
+                )
+            }
+
+            // LOAD PHOTO PICKER IMAGE
+            .task(id: selectedItem) {
+
+                guard let item = selectedItem else { return }
+
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let image = UIImage(data: data) {
+
+                    viewModel.selectedImage = image
                 }
-                .padding(15)
+            }
+
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onAppear {
+                let permission = AVCaptureDevice.authorizationStatus(for: .video)
+                print(permission.rawValue)
             }
         }
-
-        // CAMERA SHEET
-        .sheet(isPresented: $showCameraPicker) {
-            ImagePicker(
-                sourceType: selectionType,
-                selectedImage: $viewModel.selectedImage
-            )
-        }
-
-        // LOAD PHOTO PICKER IMAGE
-        .task(id: selectedItem) {
-
-            guard let item = selectedItem else { return }
-
-            if let data = try? await item.loadTransferable(type: Data.self),
-               let image = UIImage(data: data) {
-
-                viewModel.selectedImage = image
+    }
+    
+    private func triggerToast() {
+        // 1. Cancel the existing timer if it exists
+        toastWorkItem?.cancel()
+        
+        // 2. Show the toast immediately
+        isShowingToast = true
+        
+        // 3. Create a new work item to hide the toast
+        let workItem = DispatchWorkItem {
+            withAnimation {
+                isShowingToast = false
             }
         }
-
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear {
-            let permission = AVCaptureDevice.authorizationStatus(for: .video)
-            print(permission.rawValue)
-        }
+        
+        // 4. Save and schedule the new work item
+        toastWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: workItem)
     }
 
     // CAMERA VIEW
