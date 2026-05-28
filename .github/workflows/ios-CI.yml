@@ -30,4 +30,4 @@ jobs:
           xcodebuild test \
           -project ScanCam.xcodeproj \
           -scheme ScanCam \
-          -destination 'platform=iOS Simulator,name=Any iOS Simulator Device'
+          -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
